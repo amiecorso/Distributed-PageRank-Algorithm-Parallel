@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
     auto start = chrono::high_resolution_clock::now();
     fstream f(argv[1], fstream::in );
     string s;
-    getline( f, s, '\0');
+    getline(f, s, '\0');
     // stop timer
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::seconds>(stop - start); 

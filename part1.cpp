@@ -3,11 +3,17 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
+#include <map>
+#include <vector>
 #include <string>
 #include <stdio.h>      /* printf, fopen */
 #include <stdlib.h>
 
 using namespace std;
+
+map<int, vector<int> > MAP;
+typedef map<int, vector<int> >::const_iterator MapIterator;
+typedef vector<int>::const_iterator VecIterator;
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
@@ -16,16 +22,24 @@ int main(int argc, char *argv[]) {
     }
     // start timer
     auto start = chrono::high_resolution_clock::now();
-    fstream f(argv[1], fstream::in );
-    string s;
-    getline(f, s, '\0');
+    ifstream infile(argv[1]);
+    int a, b;
+    while (infile >> a >> b) {
+        MAP[a].push_back(b);
+    }
+    // print our map
+    for (MapIterator iter = MAP.begin(); iter != MAP.end(); iter++)
+    {
+        cout << "Key: " << iter->first << endl << "Values:" << endl;
+        for (VecIterator vec_iter = iter->second.begin(); vec_iter != iter->second.end(); vec_iter++)
+            cout << " " << *vec_iter << endl;
+    }
     // stop timer
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::seconds>(stop - start); 
 
     cout << "Time to read input file = " << duration.count() << "sec" << endl; 
-    cout << s << endl;
-    f.close();
+    infile.close();
     /*
     FILE * pFile;
     pFile = fopen(argv[1], "r");

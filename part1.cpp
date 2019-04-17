@@ -2,8 +2,10 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <chrono>
 #include <map>
+#include <unordered_set>
 #include <vector>
 #include <string>
 #include <stdio.h>      /* printf, fopen */
@@ -11,28 +13,57 @@
 
 using namespace std;
 
-map<int, vector<int> > MAP;
-typedef map<int, vector<int> >::const_iterator MapIterator;
-typedef vector<int>::const_iterator VecIterator;
+class Node;
+typedef unordered_set<int>::iterator SetIterator;
+map<int, Node> MAP;
+typedef map<int, Node>::iterator MapIterator;
+
+
+class Node {
+    public:
+        double credit;
+        unordered_set<int> neighbors;
+    
+        Node(void) { // default constructor
+            credit = 1;
+        };
+
+        void update_credit(map<int, Node> table) {
+            double new_credit = 0;
+            for (SetIterator set_iter = neighbors.begin(); set_iter != neighbors.end(); set_iter++) {
+                new_credit += MAP[*set_iter].credit / MAP[*set_iter].neighbors.size();
+                cout  << new_credit << endl;
+            }
+            credit = new_credit;
+        };
+};
 
 int main(int argc, char *argv[]) {
+    //parse args
     if (argc < 3) {
         cerr << "Error: Not enough arguments" << endl;
         exit(EXIT_FAILURE);
+    }
+    istringstream iss(argv[2]);
+    int rounds;
+    if (!(iss >> rounds)) {
+        cerr << "Error: specify an integer number of rounds" << endl;
     }
     // start timer
     auto start = chrono::high_resolution_clock::now();
     ifstream infile(argv[1]);
     int a, b;
     while (infile >> a >> b) {
-        MAP[a].push_back(b);
+        MAP[a].neighbors.insert(b);
+        MAP[b].neighbors.insert(a);
     }
-    // print our map
-    for (MapIterator iter = MAP.begin(); iter != MAP.end(); iter++)
-    {
-        cout << "Key: " << iter->first << endl << "Values:" << endl;
-        for (VecIterator vec_iter = iter->second.begin(); vec_iter != iter->second.end(); vec_iter++)
-            cout << " " << *vec_iter << endl;
+    // iterate for number of rounds
+    for (int i = 0; i < rounds; i++) {
+        cout << "ROUND: " << i << endl;
+        for (MapIterator iter = MAP.begin(); iter != MAP.end(); iter++) {
+            cout << "Key: " << iter->first << endl << "new_credit values:" << endl;
+            iter->second.update_credit(MAP);
+        }
     }
     // stop timer
     auto stop = chrono::high_resolution_clock::now();

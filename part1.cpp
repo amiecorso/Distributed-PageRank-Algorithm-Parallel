@@ -4,7 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <chrono>
-#include <map>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include <string>
@@ -15,8 +15,8 @@ using namespace std;
 
 class Node;
 typedef unordered_set<int>::iterator SetIterator;
-map<int, Node> MAP;
-typedef map<int, Node>::iterator MapIterator;
+unordered_map<int, Node> MAP;
+typedef unordered_map<int, Node>::iterator MapIterator;
 
 
 class Node {
@@ -28,7 +28,7 @@ class Node {
             credit = 1;
         };
 
-        void update_credit(map<int, Node> table) {
+        void update_credit(unordered_map<int, Node> table) {
             double new_credit = 0;
             for (SetIterator set_iter = neighbors.begin(); set_iter != neighbors.end(); set_iter++) {
                 new_credit += MAP[*set_iter].credit / MAP[*set_iter].neighbors.size();
@@ -75,16 +75,5 @@ int main(int argc, char *argv[]) {
         cout << "Time for round " << i << ": " << duration.count() << "sec" << endl; 
     }
     infile.close();
-    /*
-    FILE * pFile;
-    pFile = fopen(argv[1], "r");
-    if (pFile==NULL) {
-        printf("Error opening file");
-        exit (EXIT_FAILURE);
-    }
-    else {
-     // file operations here    
-    }
-    */
     return 0;
 }

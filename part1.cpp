@@ -61,14 +61,18 @@ int main(int argc, char *argv[]) {
     // stop timer
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::seconds>(stop - start); 
-
     cout << "Time to read input file = " << duration.count() << "sec" << endl; 
+    
     // iterate for number of rounds
     for (int i = 0; i < rounds; i++) {
+        auto start = chrono::high_resolution_clock::now();
         for (MapIterator iter = MAP.begin(); iter != MAP.end(); iter++) {
             // cout << "Key: " << iter->first << endl << "new_credit values:" << endl;
             iter->second.update_credit(MAP);
         }
+        auto stop = chrono::high_resolution_clock::now();
+        auto duration = chrono::duration_cast<chrono::seconds>(stop - start); 
+        cout << "Time for round " << i << ": " << duration.count() << "sec" << endl; 
     }
     infile.close();
     /*

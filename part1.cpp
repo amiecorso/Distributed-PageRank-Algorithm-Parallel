@@ -15,9 +15,6 @@ using namespace std;
 
 class Node;
 typedef unordered_set<int>::iterator SetIterator;
-unordered_map<int, Node> MAP;
-typedef unordered_map<int, Node>::iterator MapIterator;
-
 
 class Node {
     public:
@@ -31,12 +28,14 @@ class Node {
         void update_credit(unordered_map<int, Node> table) {
             double new_credit = 0;
             for (SetIterator set_iter = neighbors.begin(); set_iter != neighbors.end(); set_iter++) {
-                new_credit += MAP[*set_iter].credit / MAP[*set_iter].neighbors.size();
+                new_credit += table[*set_iter].credit / table[*set_iter].neighbors.size();
                 // cout  << new_credit << endl;
             }
             credit = new_credit;
         };
 };
+unordered_map<int, Node> MAP;
+typedef unordered_map<int, Node>::iterator MapIterator;
 
 int main(int argc, char *argv[]) {
     //parse args

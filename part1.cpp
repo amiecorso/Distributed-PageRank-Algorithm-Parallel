@@ -32,7 +32,7 @@ class Node {
             double new_credit = 0;
             for (SetIterator set_iter = neighbors.begin(); set_iter != neighbors.end(); set_iter++) {
                 new_credit += MAP[*set_iter].credit / MAP[*set_iter].neighbors.size();
-                cout  << new_credit << endl;
+                // cout  << new_credit << endl;
             }
             credit = new_credit;
         };
@@ -51,25 +51,25 @@ int main(int argc, char *argv[]) {
     }
     // start timer
     auto start = chrono::high_resolution_clock::now();
+    // read file into hash table
     ifstream infile(argv[1]);
     int a, b;
     while (infile >> a >> b) {
         MAP[a].neighbors.insert(b);
         MAP[b].neighbors.insert(a);
     }
-    // iterate for number of rounds
-    for (int i = 0; i < rounds; i++) {
-        cout << "ROUND: " << i << endl;
-        for (MapIterator iter = MAP.begin(); iter != MAP.end(); iter++) {
-            cout << "Key: " << iter->first << endl << "new_credit values:" << endl;
-            iter->second.update_credit(MAP);
-        }
-    }
     // stop timer
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::seconds>(stop - start); 
 
     cout << "Time to read input file = " << duration.count() << "sec" << endl; 
+    // iterate for number of rounds
+    for (int i = 0; i < rounds; i++) {
+        for (MapIterator iter = MAP.begin(); iter != MAP.end(); iter++) {
+            // cout << "Key: " << iter->first << endl << "new_credit values:" << endl;
+            iter->second.update_credit(MAP);
+        }
+    }
     infile.close();
     /*
     FILE * pFile;

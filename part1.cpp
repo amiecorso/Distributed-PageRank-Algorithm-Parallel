@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 #include <chrono>
 #include <unordered_map>
 #include <map>
@@ -94,6 +95,7 @@ int main(int argc, char *argv[]) {
     }
 
     // write output
+    auto writestart = chrono::high_resolution_clock::now();
     ofstream output;
 	output.open("output.txt");
 	map<int, vector<int> > orderedrank(adj.begin(), adj.end());
@@ -103,12 +105,15 @@ int main(int argc, char *argv[]) {
         output << id << "\t" << orderiter->second.size() << "\t";
         for (int r = 0; r < allrounds.size(); r++) {
             double rr = allrounds[r][id];
-            output << rr << "\t";
+            output << setprecision(6) << rr << "\t\t";
         }
         output << endl;
 		++orderiter;
 	}
     output.close();
+    auto writestop = chrono::high_resolution_clock::now();
+    auto writeduration = chrono::duration_cast<chrono::seconds>(writestop - writestart); 
+    cout << "Time to write output " << writeduration.count() << "sec" << endl; 
 
     return 0;
 }

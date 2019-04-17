@@ -13,29 +13,33 @@
 
 using namespace std;
 
-class Node;
-typedef unordered_set<int>::iterator SetIterator;
-
-class Node {
-    public:
-        double credit;
-        unordered_set<int> neighbors;
-    
-        Node(void) { // default constructor
-            credit = 1;
-        };
-
-        void update_credit(unordered_map<int, Node> table) {
-            double new_credit = 0;
-            for (SetIterator set_iter = neighbors.begin(); set_iter != neighbors.end(); set_iter++) {
-                new_credit += table[*set_iter].credit / table[*set_iter].neighbors.size();
-                // cout  << new_credit << endl;
-            }
-            credit = new_credit;
-        };
+void add_edge(int n1, int n2, unordered_map<int, vector<int> > &adj) {
+    unordered_map<int, vector<int> >::iterator iter;
+    iter = adj.find(n1);
+    if (iter != adj.end()) { // if the entry already exists in our table
+        iter->second.push_back(n2); // then add the neighbor to it
+    }
+    else {
+        adj[n1].push_back(n2);
+    }
 };
-unordered_map<int, Node> MAP;
-typedef unordered_map<int, Node>::iterator MapIterator;
+
+void one_round(unordered_map<int, double> &ranks, unordered_map<int, double> &newranks, unordered_map<int, vector<int> > &adj) {
+    unordered_map<int, vector<int> >::iterator iter;
+    iter = adj.begin();
+    while (iter != adj.end()) {
+        vector<int> neighbors = iter->second;
+        double newrank = 0;
+        for (int i = 0; i < neighbors.size(); i++) {
+            int neighbor = neighbors[i];
+            double nrank = ranks[neighbor];
+            double degree = adj[neighbor].size();
+            newrank += nrank / degree;
+        }//endfor
+        newranks.insert(make_pair(iter->first, newrank));
+        ++iter;
+    }//endwhile
+};
 
 int main(int argc, char *argv[]) {
     //parse args
@@ -48,31 +52,41 @@ int main(int argc, char *argv[]) {
     if (!(iss >> rounds)) {
         cerr << "Error: specify an integer number of rounds" << endl;
     }
-    // start timer
-    auto start = chrono::high_resolution_clock::now();
     // read file into hash table
+    unordered_map<int, vector<int> > adj;
     ifstream infile(argv[1]);
-    int a, b;
-    while (infile >> a >> b) {
-        MAP[a].neighbors.insert(b);
-        MAP[b].neighbors.insert(a);
+    auto start = chrono::high_resolution_clock::now();
+    if (infile.is_open()) {
+        // start timer
+        int a, b;
+        while (infile >> a >> b) {
+            add_edge(a, b, adj);
+            add_edge(b, a, adj);
+        }
     }
+    infile.close();
     // stop timer
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::seconds>(stop - start); 
     cout << "Time to read input file = " << duration.count() << "sec" << endl; 
     
+    // initialize ranks (to 1)
+    unordered_map<int, double> ranks;
+    unordered_map<int,vector<int> >::iterator iter = adj.begin();
+	while(iter != adj.end()) {
+		ranks.insert(make_pair(iter->first, 1.));
+		++iter;
+	}
+
     // iterate for number of rounds
     for (int i = 0; i < rounds; i++) {
         auto start = chrono::high_resolution_clock::now();
-        for (MapIterator iter = MAP.begin(); iter != MAP.end(); iter++) {
-            // cout << "Key: " << iter->first << endl << "new_credit values:" << endl;
-            iter->second.update_credit(MAP);
-        }
+        unordered_map<int, double> roundranks;
+        one_round(ranks, roundranks, adj);
         auto stop = chrono::high_resolution_clock::now();
         auto duration = chrono::duration_cast<chrono::seconds>(stop - start); 
         cout << "Time for round " << i << ": " << duration.count() << "sec" << endl; 
+        ranks = roundranks;
     }
-    infile.close();
     return 0;
 }

@@ -5,6 +5,7 @@
 #include <sstream>
 #include <chrono>
 #include <unordered_map>
+#include <map>.
 #include <unordered_set>
 #include <vector>
 #include <string>
@@ -78,6 +79,8 @@ int main(int argc, char *argv[]) {
 		++iter;
 	}
 
+    // keep track of ALL rounds
+    vector<unordered_map<int, double> > allrounds;
     // iterate for number of rounds
     for (int i = 0; i < rounds; i++) {
         auto start = chrono::high_resolution_clock::now();
@@ -87,6 +90,25 @@ int main(int argc, char *argv[]) {
         auto duration = chrono::duration_cast<chrono::seconds>(stop - start); 
         cout << "Time for round " << i << ": " << duration.count() << "sec" << endl; 
         ranks = roundranks;
+        allrounds.push_back(roundranks);
     }
+
+    // write output
+    ofstream output;
+	output.open("output.txt");
+	map<int, vector<int> > orderedrank(adj.begin(), adj.end());
+	map<int, vector<int> >::iterator orderiter = orderedrank.begin();
+	while(orderiter != orderedrank.end()) {
+        int id = orderiter-> first;
+        output << id << "\t" << orderiter->second.size() << "\t";
+        for (int r = 0; r < allrounds.size(); r++) {
+            double rr = allrounds[r][id];
+            output << rr << "\t";
+        }
+        output << endl;
+		++orderiter;
+	}
+    output.close();
+
     return 0;
 }

@@ -1,11 +1,11 @@
-SRC=part1.cpp
-OBJ=$(SRC:.cpp=.o)
+SRC=part1.c
+OBJ=$(SRC:.c=.o)
 
 prog: $(OBJ)
-	g++ $(OBJ) -o prog
+	gcc $(OBJ) -o prog
 
 .C.o: $<
-	g++  -g -I. -c $<
+	gcc  -g -I. -c $<
 
 clean:
 	rm *.o prog

@@ -46,7 +46,7 @@ int main(int argc, char const *argv[]) {
             if (firstspace) {
                 numbuf[index] = '\0'; //terminate a
                 a = atoi(numbuf);     // read it as an int
-                printf("a: %i   ", a);
+//                printf("a: %i   ", a);
                 index = 0;
                 firstspace = 0;
                 continue;
@@ -57,7 +57,7 @@ int main(int argc, char const *argv[]) {
         if (c == '\n') {
             numbuf[index] = '\0';
             b = atoi(numbuf);
-            printf("b: %i   \n", b);
+//            printf("b: %i   \n", b);
             index = 0;
             firstspace = 1;
             // Count number of neighbors for each node 
@@ -71,17 +71,22 @@ int main(int argc, char const *argv[]) {
         ++index;
         firstspace = 1;
     }
+
+
     // FIND MAX NODE
-    for (int i = 0; i < MAXID; i++) {
+    for (int i = 0; i <= MAXID; i++) {
         if (COUNTS[i] > MAXNODE) MAXNODE = COUNTS[i];
     } //endfor
     printf("most neighbors: %i\n", MAXNODE);
+    printf("maxid: %i\n", MAXID);
     // CREATE RECIPROCAL ARRAY
-    RECIP = calloc(MAXID, sizeof(int));
+    RECIP = calloc(MAXID + 1, sizeof(double));
     int count;
-    for (int i = 0; i < MAXID; i++) {
+    for (int i = 0; i <= MAXID; i++) {
         count = COUNTS[i];
-        if (count) RECIP[i] = 1 / count;
+        if (count) {
+            RECIP[i] = (1.0 / count);
+        }
     } //endfor
 
     // INITIALIZE CREDIT
@@ -97,6 +102,7 @@ int main(int argc, char const *argv[]) {
         NEIGHBS[i][0] = 1; // INDEX info
     }
 
+    // POPULATE NEIGHBOR ARRAY
     index = 0;
     int nextindex;
     for (int i = 0; i < size; i++) {
@@ -136,6 +142,17 @@ int main(int argc, char const *argv[]) {
         ++index;
         firstspace = 1;
     }
+    /*
+    // print 2D array:
+    for (int i = 0; i <= MAXID; i++) {
+        printf("node: %i, neighbors: ", i);
+        for (int j = 1; j < NEIGHBS[i][0]; j++) {
+            printf("%i ", NEIGHBS[i][j]);
+        }
+        printf("\n");
+    }
+    */
+
     // PERFORM ROUNDS
     int numrounds = atoi(argv[2]);
     double **ROUNDS = malloc(numrounds * sizeof(double *));
@@ -147,6 +164,8 @@ int main(int argc, char const *argv[]) {
             if (neighbcount) { // only need to perform update if this node has neighbors - i.e. if this node ID exists
                 for (int neighindex = 1; neighindex <= neighbcount; neighindex++) {
                     int neighbor = NEIGHBS[n][neighindex];
+                    double cred = CREDIT[neighbor];
+                    double recip = RECIP[neighbor];
                     newcred += CREDIT[neighbor] * RECIP[neighbor];
                 } //endfor neighindex
                 ROUNDS[i][n] = newcred;
@@ -159,7 +178,15 @@ int main(int argc, char const *argv[]) {
     }//endfor i
 
     // PRINT ROUND RESULTS
-
+    for (int n = 0; n <= MAXID; n++) {
+        if (COUNTS[n]) {
+            printf("node %i: ", n);
+            for (int i = 0; i < numrounds; i++) {
+                printf("%f\t", ROUNDS[i][n]);
+            } //endfor i
+            printf("\n");
+        } // endif
+    } //endfor n
 
     // TODO: write to file
     return 0;

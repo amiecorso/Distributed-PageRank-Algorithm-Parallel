@@ -2,7 +2,7 @@ SRC=part1.c
 OBJ=$(SRC:.c=.o)
 
 prog: $(OBJ)
-	gcc $(OBJ) -o prog
+	gcc $(OBJ) -Ofast -march=[cpu-type] -o prog
 
 .C.o: $<
 	gcc  -g -I. -c $<

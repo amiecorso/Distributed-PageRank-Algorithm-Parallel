@@ -11,7 +11,9 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-long MAXNODES = 5000000000;
+//long MAXNODES = 5000000000;
+//long MAXNODES = 50;
+long MAXNODES = 10000000;
 long MAXID = 0;
 int *COUNTS; 
 double *RECIP;
@@ -40,7 +42,7 @@ int main(int argc, char const *argv[]) {
     if (!f) {
         return 1;
     }
-    char *numbuf = malloc(20); // make an array for storing characters from file
+    char *numbuf = malloc(64); // make an array for storing characters from file
     int index = 0; // for filling our numbuf
     int a, b;
     int firstspace = 1;
@@ -48,11 +50,11 @@ int main(int argc, char const *argv[]) {
         char c;
         c = f[i];
         //putchar(c);
-        if (c == ' ') {
+        if (c == '\t') {
             if (firstspace) {
                 numbuf[index] = '\0'; //terminate a
                 a = atoi(numbuf);     // read it as an int
-//                printf("a: %i   ", a);
+                //printf("a: %i   ", a);
                 index = 0;
                 firstspace = 0;
                 continue;
@@ -60,10 +62,11 @@ int main(int argc, char const *argv[]) {
             else
                 continue;
         }
+
         if (c == '\n') {
             numbuf[index] = '\0';
             b = atoi(numbuf);
-//            printf("b: %i   \n", b);
+            //printf("b: %i   \n", b);
             index = 0;
             firstspace = 1;
             // Count number of neighbors for each node 
@@ -80,16 +83,18 @@ int main(int argc, char const *argv[]) {
 
 
     // FIND MAX NODE
+    /*
     for (int i = 0; i <= MAXID; i++) {
         if (COUNTS[i] > MAXNODE) MAXNODE = COUNTS[i];
     } //endfor
     printf("most neighbors: %i\n", MAXNODE);
-    printf("maxid: %i\n", MAXID);
+    */
+//    printf("maxid: %i\n", MAXID);
 
     // ALLOCATE 2-D array
     NEIGHBS = malloc((MAXID + 1) * sizeof(int *));
     for (int i = 0; i <= MAXID; i++) {
-        NEIGHBS[i] = malloc((MAXNODE + 1) * sizeof(int));
+        NEIGHBS[i] = malloc((COUNTS[i] + 1) * sizeof(int));
         NEIGHBS[i][0] = 1; // INDEX info
     }
 
@@ -100,7 +105,7 @@ int main(int argc, char const *argv[]) {
         char c;
         c = f[i];
         //putchar(c);
-        if (c == ' ') {
+        if (c == '\t') {
             if (firstspace) {
                 numbuf[index] = '\0'; //terminate a
                 a = atoi(numbuf);     // read it as an int
@@ -153,7 +158,6 @@ int main(int argc, char const *argv[]) {
         CREDIT[i] = 1.0; 
     }
 
-
     // CREATE RECIPROCAL ARRAY
     RECIP = calloc(MAXID + 1, sizeof(double));
     int count;
@@ -164,6 +168,7 @@ int main(int argc, char const *argv[]) {
         }
     } //endfor
 
+//    fprintf(stdout, "seg fault? %d\n", __LINE__);
     // PERFORM ROUNDS
     int numrounds = atoi(argv[2]);
     double **ROUNDS = malloc(numrounds * sizeof(double *));

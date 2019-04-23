@@ -34,7 +34,7 @@ int main(int argc, char const *argv[]) {
     struct stat s;
     int fd = open (argv[1], O_RDONLY);
 
-    /* Get the size of the file. */
+    // get size of file
     int status = fstat (fd, & s);
     size = s.st_size;
 
@@ -80,16 +80,6 @@ int main(int argc, char const *argv[]) {
         ++index;
         firstspace = 1;
     }
-
-
-    // FIND MAX NODE
-    /*
-    for (int i = 0; i <= MAXID; i++) {
-        if (COUNTS[i] > MAXNODE) MAXNODE = COUNTS[i];
-    } //endfor
-    printf("most neighbors: %i\n", MAXNODE);
-    */
-//    printf("maxid: %i\n", MAXID);
 
     // ALLOCATE 2-D array
     NEIGHBS = malloc((MAXID + 1) * sizeof(int *));
@@ -141,16 +131,6 @@ int main(int argc, char const *argv[]) {
     end = clock();
     elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
     printf("Time to read: %f seconds\n", elapsed);
-    /*
-    // print 2D array:
-    for (int i = 0; i <= MAXID; i++) {
-        printf("node: %i, neighbors: ", i);
-        for (int j = 1; j < NEIGHBS[i][0]; j++) {
-            printf("%i ", NEIGHBS[i][j]);
-        }
-        printf("\n");
-    }
-    */
 
     // INITIALIZE CREDIT
     CREDIT = malloc((MAXID + 1) * sizeof(double));
@@ -198,18 +178,6 @@ int main(int argc, char const *argv[]) {
 
     }//endfor i
 
-    /*
-    // PRINT ROUND RESULTS
-    for (int n = 0; n <= MAXID; n++) {
-        if (COUNTS[n]) {
-            printf("node %i: ", n);
-            for (int i = 0; i < numrounds; i++) {
-                printf("%f\t", ROUNDS[i][n]);
-            } //endfor i
-            printf("\n");
-        } // endif
-    } //endfor n
-    */
 
     // WRITE OUTPUT
     start = clock();

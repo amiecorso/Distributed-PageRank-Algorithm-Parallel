@@ -21,6 +21,12 @@ int MAXNODE = 0; // largest count of neighbors
 
 int main(int argc, char const *argv[]) {
     COUNTS = calloc(MAXNODES, sizeof(int));
+
+    // timing stuff
+    clock_t start, end;
+    double elapsed;
+    start = clock();
+
     unsigned char *f;
     int size;
     struct stat s;
@@ -79,21 +85,6 @@ int main(int argc, char const *argv[]) {
     } //endfor
     printf("most neighbors: %i\n", MAXNODE);
     printf("maxid: %i\n", MAXID);
-    // CREATE RECIPROCAL ARRAY
-    RECIP = calloc(MAXID + 1, sizeof(double));
-    int count;
-    for (int i = 0; i <= MAXID; i++) {
-        count = COUNTS[i];
-        if (count) {
-            RECIP[i] = (1.0 / count);
-        }
-    } //endfor
-
-    // INITIALIZE CREDIT
-    CREDIT = malloc((MAXID + 1) * sizeof(double));
-    for (int i = 0; i <= MAXID; i++) {
-        CREDIT[i] = 1.0; 
-    }
 
     // ALLOCATE 2-D array
     NEIGHBS = malloc((MAXID + 1) * sizeof(int *));
@@ -142,6 +133,9 @@ int main(int argc, char const *argv[]) {
         ++index;
         firstspace = 1;
     }
+    end = clock();
+    elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("Time to read: %f seconds\n", elapsed);
     /*
     // print 2D array:
     for (int i = 0; i <= MAXID; i++) {
@@ -153,10 +147,28 @@ int main(int argc, char const *argv[]) {
     }
     */
 
+    // INITIALIZE CREDIT
+    CREDIT = malloc((MAXID + 1) * sizeof(double));
+    for (int i = 0; i <= MAXID; i++) {
+        CREDIT[i] = 1.0; 
+    }
+
+
+    // CREATE RECIPROCAL ARRAY
+    RECIP = calloc(MAXID + 1, sizeof(double));
+    int count;
+    for (int i = 0; i <= MAXID; i++) {
+        count = COUNTS[i];
+        if (count) {
+            RECIP[i] = (1.0 / count);
+        }
+    } //endfor
+
     // PERFORM ROUNDS
     int numrounds = atoi(argv[2]);
     double **ROUNDS = malloc(numrounds * sizeof(double *));
     for (int i = 0; i < numrounds; i++) { // round
+        start = clock();
         ROUNDS[i] = malloc((MAXID + 1) * sizeof(double));
         for (int n = 0; n <= MAXID; n++) { // node
             double newcred = 0.0; // new credit for this node, this round
@@ -175,8 +187,13 @@ int main(int argc, char const *argv[]) {
         for (int j = 0; j <= MAXID; j++) {
             CREDIT[j] = ROUNDS[i][j];
         } 
+        end = clock();
+        elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
+        printf("Round %i: %f seconds\n", i + 1, elapsed);
+
     }//endfor i
 
+    /*
     // PRINT ROUND RESULTS
     for (int n = 0; n <= MAXID; n++) {
         if (COUNTS[n]) {
@@ -187,8 +204,29 @@ int main(int argc, char const *argv[]) {
             printf("\n");
         } // endif
     } //endfor n
+    */
 
-    // TODO: write to file
+    // WRITE OUTPUT
+    start = clock();
+    FILE *output;
+    output = fopen("output.txt", "w");
+    if (output == NULL) {   
+        printf("Error: Could not open output file for writing.\n"); 
+        exit(-1); // must include stdlib.h 
+    } 
+
+    for (int n = 0; n <= MAXID; n++) {
+        if (COUNTS[n]) {
+            fprintf(output, "%i\t", n);
+            for (int i = 0; i < numrounds; i++) {
+                fprintf(output, "%f\t", ROUNDS[i][n]);
+            } //endfor i
+            fprintf(output, "\n");
+        } // endif
+    } //endfor n
+    fclose(output);
+    end = clock();
+    elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("Time to write: %f seconds\n", elapsed);
     return 0;
-
 }

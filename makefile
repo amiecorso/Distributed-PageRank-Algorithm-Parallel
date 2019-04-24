@@ -1,4 +1,4 @@
-SRC=part1.c
+SRC=part2.c
 OBJ=$(SRC:.c=.o)
 
 prog: $(OBJ)

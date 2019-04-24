@@ -1,4 +1,4 @@
-// part.c
+// part2.c
 #include <netdb.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -15,27 +15,33 @@
 //long MAXNODES = 50;
 long MAXNODES = 10000000;
 long MAXID = 0;
+long MAXDEG = 0;
 int *COUNTS; 
 double *RECIP;
 double *CREDIT;
 int **NEIGHBS;
-int MAXNODE = 0; // largest count of neighbors
 
 int main(int argc, char const *argv[]) {
     COUNTS = calloc(MAXNODES, sizeof(int));
+
+    char *graphf = argv[1];
+    char *partf = argv[2];
+    int rounds = atoi(argv[3]);
+    int partitions = atoi(argv[4]);
 
     // timing stuff
     clock_t start, end;
     double elapsed;
     start = clock();
 
+    // READ PARTITION FILE ==============
     unsigned char *f;
     int size;
     struct stat s;
-    int fd = open (argv[1], O_RDONLY);
+    int fd = open(partf, O_RDONLY);
+    int status = fstat(fd, & s);
 
-    // get size of file
-    int status = fstat (fd, & s);
+    status = fstat (fd, & s);
     size = s.st_size;
 
     f = (char *) mmap (0, size, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -44,40 +50,74 @@ int main(int argc, char const *argv[]) {
     }
     char *numbuf = malloc(64); // make an array for storing characters from file
     int index = 0; // for filling our numbuf
-    int a, b;
+    int n, d, p;
     int firstspace = 1;
+    char c;
+    char *token;
     for (int i = 0; i < size; i++) {
-        char c;
         c = f[i];
         //putchar(c);
         if (c == '\n') {
             numbuf[index] = '\0';
+            token = strtok(numbuf, "\t\t");
+            n = atoi(token);
+            token = strtok(NULL, "\t\t");
+            d = atoi(token);
+            token = strtok(NULL, "\t\t");
+            p = atoi(token);
+            printf("n: %i,  d: %i, p: %i\n", n, d, p);
             index = 0;
-            token = strtok(numbuf, '\t');
+        }//endif
+        else {
+            numbuf[index] = c;
+            ++index;
+        }
+    }
+
+    // READ GRAPH FILE ================
+    fd = open(graphf, O_RDONLY);
+        // get size of file
+    status = fstat (fd, & s);
+    size = s.st_size;
+
+    f = (char *) mmap (0, size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (!f) {
+        return 1;
+    }
+    char *newbuf = malloc(64); // make an array for storing characters from file
+    index = 0; // for filling our numbuf
+    int a, b;
+    for (int i = 0; i < size; i++) {
+        c = f[i];
+        //putchar(c);
+        if (c == '\n') {
+            newbuf[index] = '\0';
+            index = 0;
+            token = strtok(newbuf, "\t\t");
             a = atoi(token);
-            token = strtok(NULL, '\t');
+            token = strtok(NULL, "\t\t");
             b = atoi(token);
-            printf("a: %i, b: %i\n", a, b);
+
             // Count number of neighbors for each node 
             COUNTS[a] += 1;
             COUNTS[b] += 1;
             if (a > MAXID) MAXID = a;
             if (b > MAXID) MAXID = b;
-            continue;
         }
-        numbuf[index] = c;
-        ++index;
-        firstspace = 1;
+        else {
+            newbuf[index] = c;
+            ++index;
+        }
     }
 
-    // ALLOCATE 2-D array
+    // ALLOCATE 2-D array ======================
     NEIGHBS = malloc((MAXID + 1) * sizeof(int *));
     for (int i = 0; i <= MAXID; i++) {
         NEIGHBS[i] = malloc((COUNTS[i] + 1) * sizeof(int));
         NEIGHBS[i][0] = 1; // INDEX info
     }
 
-    // POPULATE NEIGHBOR ARRAY
+    // POPULATE NEIGHBOR ARRAY ====================
     index = 0;
     int nextindex;
     for (int i = 0; i < size; i++) {

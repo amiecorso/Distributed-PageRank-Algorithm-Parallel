@@ -1,7 +1,7 @@
 // part2.c
 // TODO:
 // - error checking
-// - Optimization: this partition only needs to record credit/degree/neighbors for ITS partition nodes
+// - this partition only needs to record credit/degree/neighbors for ITS partition nodes
 // MPI stuff next
 #include <netdb.h>
 #include <unistd.h>
@@ -14,7 +14,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include "mpi.h"
+#include <mpi.h>
 
 long MAXNODES = 10000000;
 long MAXID = 0;

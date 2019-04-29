@@ -31,14 +31,6 @@ typedef struct Data {
     double cred;
 } Data;
 
-// MPI_Send(buf, count, type, dest, tag, comm)
-// buf: starting address to send buffer
-// count: elements insend buffer
-// type:  each send buffer element
-// dest: node rank ID to send the buffer to
-// tag: message tag (0)
-// comm: communicator (MPI_COMM_WORLD)
-
 int main(int argc, char const *argv[]) {
     // MPI INIT
     int ierr, procid, numprocs;
@@ -186,7 +178,9 @@ int main(int argc, char const *argv[]) {
     }
     // MPI Variables for receiving requests
     int *reqbuf = malloc(sizeof(int));
-    int *recvbuf = malloc(sizeof(data));
+    data *senddatabuf = malloc(sizeof(data));
+    data *recvdatabuf = malloc(sizeof(data));
+    int *recvreqbuf = malloc(sizeof(int));
     MPI_Request rrequest;
     MPI_Status rstat;
     int flag = 0;
@@ -213,7 +207,7 @@ int main(int argc, char const *argv[]) {
                                 start = clock();
                                 elapsed = 0;
                                 flag = 0;
-                                MPI_Irecv(recvbuf, 1, data, extern_proc, 1, MPI_COMM_WORLD, &rrequest);
+                                MPI_Irecv(recvdatabuf, 1, data, extern_proc, 1, MPI_COMM_WORLD, &rrequest);
                                 while ((elapsed < TIMEOUT) && !flag) {
                                     MPI_Test(&rrequest, &flag, &rstat);
                                     if (flag) {
@@ -225,6 +219,17 @@ int main(int argc, char const *argv[]) {
                                 if (!flag) {
                                     printf("timed out waiting for response to msg");
                                 }
+                                flag = 0;
+                                MPI_Irecv(recvreqbuf, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &rrequest);
+                                MPI_Test(&rrequest, &flag, &rstat);
+                                if (flag) { // respond to request
+                                   int source = rstat.MPI_SOURCE;
+                                   int neighborID = recvreqbuf[0];
+                                   double ncred = ROUNDS[i - 1][neighborID];
+                                   senddatabuf->ID = neighborID;
+                                   senddatabuf->cred = ncred;
+                                   MPI_Send(senddatabuf, 1, data, source, 1, MPI_COMM_WORLD);
+                                } // endif flag
                                 // TODO: service any pending requests, then query again if needed.
                             } // end while still don't have externneighbor credit...
                         } // end else

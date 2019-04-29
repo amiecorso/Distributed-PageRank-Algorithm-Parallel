@@ -170,11 +170,11 @@ int main(int argc, char const *argv[]) {
 
     // CREATE RECIPROCAL ARRAY ============
     RECIP = calloc(MAXID + 1, sizeof(double));
-    int count;
+    int cnt;
     for (int i = 0; i <= MAXID; i++) {
-        count = COUNTS[i];
-        if (count) {
-            RECIP[i] = (1.0 / count);
+        cnt = COUNTS[i];
+        if (cnt) {
+            RECIP[i] = (1.0 / cnt);
         }
     } //endfor
 
@@ -202,29 +202,31 @@ int main(int argc, char const *argv[]) {
                     for (int neighindex = 1; neighindex <= neighbcount; neighindex++) {
                         int neighbor = NEIGHBS[n][neighindex];
                         double neighcred = ROUNDS[i - 1][neighindex];
-                        if ROUNDS(neighcred) { // if we already have a value for this neighbor, go for it
+                        if (neighcred) { // if we already have a value for this neighbor, go for it
                             newcred += neighcred;
                         }
                         else {
-                            int extern_proc = PART[neighbor];
-                            reqbuf[0] = neighbor;
-                            MPI_Send(reqbuf, 1, MPI_INT, extern_proc, 0, MPI_COMM_WORLD);
-                            start = clock();
-                            elapsed = 0;
-                            flag = 0;
-                            MPI_Irecv(recvbuf, 1, data, extern_proc, 1, MPI_COMM_WORLD, &rrequest);
-                            while ((elapsed < TIMEOUT) && !flag) {
-                                MPI_Test(&rrequest, &flag, &rstat);
-                                if (flag) {
-                                    printf("proc %i received message with tag: %i from proc %i\n", procid, rstat.MPI_TAG, rstat.MPI_SOURCE);
-                                    break; // kill our loop
-                                } //end if flag
-                                elapsed = ((double) (clock() - start)) / (CLOCKS_PER_SEC / 1000);
-                            } //end inner while
-                            if (!flag) {
-                                printf("timed out waiting for response to msg");
-                            }
-                            // TODO: service any pending requests, then query again if needed.
+                            while (ROUNDS[i - 1][neighindex] == 0.0) {
+                                int extern_proc = PART[neighbor];
+                                reqbuf[0] = neighbor;
+                                MPI_Send(reqbuf, 1, MPI_INT, extern_proc, 0, MPI_COMM_WORLD);
+                                start = clock();
+                                elapsed = 0;
+                                flag = 0;
+                                MPI_Irecv(recvbuf, 1, data, extern_proc, 1, MPI_COMM_WORLD, &rrequest);
+                                while ((elapsed < TIMEOUT) && !flag) {
+                                    MPI_Test(&rrequest, &flag, &rstat);
+                                    if (flag) {
+                                        printf("proc %i received message with tag: %i from proc %i\n", procid, rstat.MPI_TAG, rstat.MPI_SOURCE);
+                                        break; // kill our loop
+                                    } //end if flag
+                                    elapsed = ((double) (clock() - start)) / (CLOCKS_PER_SEC / 1000);
+                                } //end inner while
+                                if (!flag) {
+                                    printf("timed out waiting for response to msg");
+                                }
+                                // TODO: service any pending requests, then query again if needed.
+                            } // end while still don't have externneighbor credit...
                         } // end else
                         newcred += ROUNDS[i - 1][neighbor] * RECIP[neighbor];
                         // service pending requests no matter what

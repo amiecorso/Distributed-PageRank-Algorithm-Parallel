@@ -4,6 +4,7 @@
 // - Optimization: this partition only needs to record credit/degree/neighbors for ITS partition nodes
 // MPI stuff next
 #include <netdb.h>
+#include <stddef.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
@@ -23,22 +24,20 @@ int *COUNTS;
 int *PART;
 double *RECIP;
 int **NEIGHBS;
+int TIMEOUT = 100;
+
+typedef struct Data {
+    int ID;
+    double cred;
+} Data;
 
 // MPI_Send(buf, count, type, dest, tag, comm)
 // buf: starting address to send buffer
 // count: elements insend buffer
-// type: MPI_Datatype of each send buffer element
+// type:  each send buffer element
 // dest: node rank ID to send the buffer to
 // tag: message tag (0)
 // comm: communicator (MPI_COMM_WORLD)
-
-// MPI_Recv(buf, count, type, src, tag, comm, status)
-// mostly same
-// buffer will be read INTO
-// src is the rank that recv from (opp of dest)
-
-// MPI_DOUBLE, MPI_CHAR, MPI_INT, etc.
-// MPI_ANY_SOURCE
 
 int main(int argc, char const *argv[]) {
     // MPI INIT
@@ -48,6 +47,14 @@ int main(int argc, char const *argv[]) {
     ierr = MPI_Comm_rank(MPI_COMM_WORLD, &procid);
     ierr = MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
 
+    // MPI DATATYPE init
+    int count = 2;
+    int array_of_blocklengths[] = {1, 1};
+    MPI_Aint array_of_displacements[] = {offsetof(Data, ID), offsetof(Data, cred)};
+    MPI_Datatype array_of_types[] = {MPI_INT, MPI_DOUBLE};
+    MPI_Datatype data;
+    MPI_Type_create_struct(count, array_of_blocklengths, array_of_displacements, array_of_types, &data);
+    MPI_Type_commit(&data);
 
     COUNTS = calloc(MAXNODES, sizeof(int));
     PART = calloc(MAXNODES, sizeof(int));
@@ -177,6 +184,12 @@ int main(int argc, char const *argv[]) {
     for (int i = 0; i <= MAXID; i++) {
         ROUNDS[0][i] = 1.0; 
     }
+    // MPI Variables for receiving requests
+    int *reqbuf = malloc(sizeof(int));
+    int *recvbuf = malloc(sizeof(data));
+    MPI_Request rrequest;
+    MPI_Status rstat;
+    int flag = 0;
 
     for (int i = 1; i <= numrounds; i++) { // round
         start = clock();
@@ -193,11 +206,26 @@ int main(int argc, char const *argv[]) {
                             newcred += neighcred;
                         }
                         else {
-
-                        }
-                        // ELSE --> query from this neighbor's owning process
-                            // wait for response timeout (IF timeout)
-                            // service any pending requests, then query again
+                            int extern_proc = PART[neighbor];
+                            reqbuf[0] = neighbor;
+                            MPI_Send(reqbuf, 1, MPI_INT, extern_proc, 0, MPI_COMM_WORLD);
+                            start = clock();
+                            elapsed = 0;
+                            flag = 0;
+                            MPI_Irecv(recvbuf, 1, data, extern_proc, 1, MPI_COMM_WORLD, &rrequest);
+                            while ((elapsed < TIMEOUT) && !flag) {
+                                MPI_Test(&rrequest, &flag, &rstat);
+                                if (flag) {
+                                    printf("proc %i received message with tag: %i from proc %i\n", procid, rstat.MPI_TAG, rstat.MPI_SOURCE);
+                                    break; // kill our loop
+                                } //end if flag
+                                elapsed = ((double) (clock() - start)) / (CLOCKS_PER_SEC / 1000);
+                            } //end inner while
+                            if (!flag) {
+                                printf("timed out waiting for response to msg");
+                            }
+                            // TODO: service any pending requests, then query again if needed.
+                        } // end else
                         newcred += ROUNDS[i - 1][neighbor] * RECIP[neighbor];
                         // service pending requests no matter what
                     } //endfor neighindex

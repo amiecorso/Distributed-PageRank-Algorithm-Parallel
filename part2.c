@@ -188,7 +188,13 @@ int main(int argc, char const *argv[]) {
                 if (neighbcount) { // only need to perform update if this node has neighbors - i.e. if this node ID exists
                     for (int neighindex = 1; neighindex <= neighbcount; neighindex++) {
                         int neighbor = NEIGHBS[n][neighindex];
-                        // IF neighbor HAS nonzero credit for round i - 1 already... use it
+                        double neighcred = ROUNDS[i - 1][neighindex];
+                        if ROUNDS(neighcred) { // if we already have a value for this neighbor, go for it
+                            newcred += neighcred;
+                        }
+                        else {
+
+                        }
                         // ELSE --> query from this neighbor's owning process
                             // wait for response timeout (IF timeout)
                             // service any pending requests, then query again

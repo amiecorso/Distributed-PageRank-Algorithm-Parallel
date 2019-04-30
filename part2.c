@@ -182,17 +182,17 @@ int main(int argc, char const *argv[]) {
     Data *senddatabuf = malloc(sizeof(data));
     Data *recvdatabuf = malloc(sizeof(data));
     int *recvreqbuf = malloc(sizeof(int));
-    MPI_Request rrequest;
-    MPI_Request datarequest;
-    MPI_Status rstat;
-    MPI_Status datastat;
+    MPI_Request *rrequest = malloc(sizeof(MPI_Request));
+    MPI_Request *datarequest = malloc(sizeof(MPI_Request));
+    MPI_Status *rstat = malloc(sizeof(MPI_Status));
+    MPI_Status *datastat = malloc(sizeof(MPI_Status));
     int dataflag = 0;
     int flag = 0;
     int source;
     int neighID;
     double ncred;
 
-    MPI_Irecv(recvreqbuf, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &rrequest);
+    MPI_Irecv(recvreqbuf, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, rrequest);
     for (int i = 1; i <= numrounds; i++) { // round
         MPI_Request *endroundreqs = calloc(numprocs,  sizeof(MPI_Request));
         MPI_Status *endroundstats = malloc(numprocs * sizeof(MPI_Status));
@@ -219,7 +219,7 @@ fprintf(stderr, "Proc %i, round %i\n", procid, i);
                             flag = 0;
                             int extern_proc = PART[neighbor];
                             reqbuf[0] = neighbor;
-                            MPI_Irecv(recvdatabuf, 1, data, extern_proc, 1, MPI_COMM_WORLD, &datarequest);
+                            MPI_Irecv(recvdatabuf, 1, data, extern_proc, 1, MPI_COMM_WORLD, datarequest);
                             dataflag = 0;
 //                                    fprintf(stderr, "proc %i sending request for neigh %i to proc %i\n", procid, neighbor, extern_proc);
                             MPI_Send(reqbuf, 1, MPI_INT, extern_proc, 0, MPI_COMM_WORLD);
@@ -230,18 +230,17 @@ fprintf(stderr, "Proc %i, round %i\n", procid, i);
                             elapsed = 0;
                             // TIMEOUT
                             while ((elapsed < TIMEOUT) && !dataflag) {
-                                MPI_Test(&datarequest, &dataflag, &datastat);
+                                MPI_Test(datarequest, &dataflag, datastat);
                                 if (dataflag) {
                                     ROUNDS[i - 1][recvdatabuf[0].ID] = recvdatabuf[0].cred;
 //                                    printf("proc %i received message with tag: %i from proc %i, node = %i, cred = %f\n", procid, rstat.MPI_TAG, rstat.MPI_SOURCE, recvdatabuf[0].ID, recvdatabuf[0].cred);
                                 } //end if flag
                                 elapsed = ((double) (clock() - start)) / (CLOCKS_PER_SEC / 1000);
-                            } //end timeout while
                             // service a pending request
-                            MPI_Test(&rrequest, &flag, &rstat);
+                            MPI_Test(rrequest, &flag, rstat);
                             if (flag) { // respond to request
-                                fprintf(stderr, "proc %i (post-TIMEouT) received req msg from proc %i tag %i node %i\n", procid, rstat.MPI_SOURCE, rstat.MPI_TAG, *recvreqbuf);
-                                source = rstat.MPI_SOURCE;
+                                fprintf(stderr, "proc %i (post-TIMEouT) received req msg from proc %i tag %i node %i\n", procid, rstat->MPI_SOURCE, rstat->MPI_TAG, *recvreqbuf);
+                                source = rstat->MPI_SOURCE;
                                 neighID = *recvreqbuf;
                                 ncred = ROUNDS[i - 1][neighID];
                                 senddatabuf->ID = neighID;
@@ -249,16 +248,18 @@ fprintf(stderr, "Proc %i, round %i\n", procid, i);
 //asdf                                fprintf(stderr, "proc %i responding to proc %i wit node %i and cred %f\n", procid, source, senddatabuf->ID, senddatabuf-> cred);
                                 MPI_Send(senddatabuf, 1, data, source, 1, MPI_COMM_WORLD);
                                 fprintf(stderr, "proc %i SENT data on node %i\n", procid, neighID);
-                                MPI_Irecv(recvreqbuf, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &rrequest);
+                                MPI_Irecv(recvreqbuf, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, rrequest);
                                 flag = 0;
                             } // end if flag
+                            } //end timeout while
                             
                             } // end !dataflag while
                             // service a pending req before moving on to next neighbor
-                            MPI_Test(&rrequest, &flag, &rstat);
+                            fprintf(stderr, "proc %i is serving pending req before next neighbor\n", procid);
+                            MPI_Test(rrequest, &flag, rstat);
                             if (flag) { // respond to request
-                                fprintf(stderr, "proc %i (pre-NEXTNEIGH) received req msg from proc %i tag %i node %i\n", procid, rstat.MPI_SOURCE, rstat.MPI_TAG, *recvreqbuf);
-                                source = rstat.MPI_SOURCE;
+                                fprintf(stderr, "proc %i (pre-NEXTNEIGH) received req msg from proc %i tag %i node %i\n", procid, rstat->MPI_SOURCE, rstat->MPI_TAG, *recvreqbuf);
+                                source = rstat->MPI_SOURCE;
                                 neighID = *recvreqbuf;
                                 ncred = ROUNDS[i - 1][neighID];
                                 senddatabuf->ID = neighID;
@@ -266,7 +267,7 @@ fprintf(stderr, "Proc %i, round %i\n", procid, i);
     //asdf                                fprintf(stderr, "proc %i responding to proc %i wit node %i and cred %f\n", procid, source, senddatabuf->ID, senddatabuf-> cred);
                                 MPI_Send(senddatabuf, 1, data, source, 1, MPI_COMM_WORLD);
                                 fprintf(stderr, "proc %i SENT data on node %i\n", procid, neighID);
-                                MPI_Irecv(recvreqbuf, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &rrequest);
+                                MPI_Irecv(recvreqbuf, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, rrequest);
                                 flag = 0;
                             } // end if flag
                         } // end else
@@ -291,18 +292,18 @@ fprintf(stderr, "Proc %i, round %i\n", procid, i);
         while (sum < numprocs) {
             // keep receiving and handling messages
             flag = 0;
-            MPI_Irecv(recvreqbuf, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &rrequest);
-            MPI_Test(&rrequest, &flag, &rstat);
+            MPI_Irecv(recvreqbuf, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, rrequest);
+            MPI_Test(rrequest, &flag, rstat);
             if (flag) { // respond to request
 //                fprintf(stderr, "received req msg from proc %i tag %i node %i\n", rstat.MPI_SOURCE, rstat.MPI_TAG, *recvreqbuf);
-                source = rstat.MPI_SOURCE;
+                source = rstat->MPI_SOURCE;
                 neighID = *recvreqbuf;
                 ncred = ROUNDS[i - 1][neighID];
                 senddatabuf->ID = neighID;
                 senddatabuf->cred = ncred;
 //                fprintf(stderr, "responding to proc %i wit node %i and cred %f\n", source, senddatabuf->ID, senddatabuf-> cred);
                 MPI_Send(senddatabuf, 1, data, source, 1, MPI_COMM_WORLD);
-                MPI_Irecv(recvreqbuf, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &rrequest);
+                MPI_Irecv(recvreqbuf, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, rrequest);
             } // end if flag
             
             // test whether round is complete (perhaps re-broadcast here if necessary??

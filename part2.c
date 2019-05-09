@@ -17,6 +17,7 @@
 #include <sys/mman.h>
 #include "mpi.h"
 
+
 long MAXNODES = 2000000;
 long MAXID = 0;
 long MYMAX = 0;
@@ -25,8 +26,6 @@ int *PART;
 int *EXNEIGH; //does this node have EXTERNAL neighbors?
 double *RECIP;
 int **NEIGHBS;
-int TIMEOUT = 100;
-
 typedef struct Data {
     int ID;
     double cred;
@@ -177,7 +176,7 @@ int main(int argc, char const *argv[]) {
     int cnt;
     for (int i = 0; i <= MAXID; i++) {
         cnt = COUNTS[i];
-        if (cnt) {
+        if (cnt > 0) {
             RECIP[i] = (1.0 / cnt);
         }
     } //endfor
@@ -215,6 +214,8 @@ int main(int argc, char const *argv[]) {
                     } //end for proc
                 } //end if this my, valid node
             } //end for n (send phase)
+            //MPI_Barrier(MPI_COMM_WORLD);
+            //sleep(10);
             for (int proc = 0; proc < numprocs; proc++) {
                 if (proc != procid)
                     MPI_Isend(markerbuffer, 1, MPI_INT, proc, 1, MPI_COMM_WORLD, srequest);
@@ -229,8 +230,7 @@ int main(int argc, char const *argv[]) {
             while (sum < numprocs) {
                 MPI_Recv(recvbuffer, 1, data, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &rstat);
                 if (rstat.MPI_TAG == 0) {
-                    if (recvbuffer[0].ID < 40)
-                    fprintf(stderr, "R%i, proc %i received msg for node=%i, cred=%f, PART[n]=%i\n", i, procid, recvbuffer[0].ID, recvbuffer[0].cred, PART[recvbuffer[0].ID]);
+                    //fprintf(stderr, "R%i, proc %i received msg for node=%i, cred=%f, PART[n]=%i\n", i, procid, recvbuffer[0].ID, recvbuffer[0].cred, PART[recvbuffer[0].ID]);
                     ROUNDS[i - 1][recvbuffer[0].ID] = recvbuffer[0].cred;
                 } // tag = 0
                 else { //assuming tag = 1
@@ -243,11 +243,15 @@ int main(int argc, char const *argv[]) {
         ROUNDS[i] = calloc(MAXID + 1, sizeof(double));
         for (int n = 0; n <= MAXID; n++) { // node
             if (COUNTS[n] && (PART[n] == procid)) { // IF this is MY node
+//            if (COUNTS[n]) {
                 double newcred = 0.0; // new credit for this node, this round
                 for (int neighindex = 1; neighindex <= COUNTS[n]; neighindex++) {
                     int neighbor = NEIGHBS[n][neighindex];
                     double neighcred = ROUNDS[i - 1][neighbor];
-                    newcred += neighcred * RECIP[neighbor];
+//                    if (n == 3)
+//node3                    fprintf(stderr, "R%i, node:%i, neighbor:%i, oldcred:%f, recip:%f (degree=%i, 1/deg=%f)\n", i, n, neighbor, neighcred, RECIP[neighbor], COUNTS[neighbor], 1.0/COUNTS[neighbor]);
+//                    newcred += neighcred * RECIP[neighbor];
+                    newcred += neighcred / COUNTS[neighbor];
                 } //endfor neighindex
                 ROUNDS[i][n] = newcred;
             } //end if my, valid node
@@ -256,6 +260,7 @@ int main(int argc, char const *argv[]) {
         elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
         printf("Round %i: %f seconds\n", i, elapsed);
         MPI_Barrier(MPI_COMM_WORLD);
+/*
         // WRITE ROUND
         char *outputfile = malloc(strlen("output.txt") + strlen("R1P1") + 1);
         char *strid = malloc(8);
@@ -281,9 +286,8 @@ int main(int argc, char const *argv[]) {
             } // endif
         } //endfor n
         fclose(output);
-
+*/
     }//endfor i
-/*
     // WRITE OUTPUT
     char *outputfile = malloc(strlen("output.txt") + strlen("1") + 1);
     char *strid = malloc(8);
@@ -313,7 +317,6 @@ int main(int argc, char const *argv[]) {
     end = clock();
     elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
     printf("Time to write: %f seconds\n", elapsed);
-*/
     ierr = MPI_Finalize();
     return 0;
 }

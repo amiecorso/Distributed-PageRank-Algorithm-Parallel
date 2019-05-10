@@ -1,8 +1,6 @@
+// Amie Corso
+// CIS 630 Project 1
 // part2.c
-// TODO:
-// - error checking
-// - Optimization: this partition only needs to record credit/degree/neighbors for ITS partition nodes
-// MPI stuff next
 #include <netdb.h>
 #include <stddef.h>
 #include <unistd.h>
@@ -20,7 +18,6 @@
 
 long MAXNODES = 2000000;
 long MAXID = 0;
-long MYMAX = 0;
 int *COUNTS; 
 int *PART;
 int *EXNEIGH; //does this node have EXTERNAL neighbors?
@@ -34,7 +31,6 @@ typedef struct Data {
 int main(int argc, char const *argv[]) {
     // MPI INIT
     int ierr, procid, numprocs;
-
     ierr = MPI_Init(&argc, &argv);
     ierr = MPI_Comm_rank(MPI_COMM_WORLD, &procid);
     ierr = MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
@@ -55,9 +51,6 @@ int main(int argc, char const *argv[]) {
     char *partf = argv[2];
     int numrounds = atoi(argv[3]);
     int partitions = atoi(argv[4]);
-
-    printf("I am process %i out of %i\n", procid, numprocs);
-    printf("graphf: %s, partf: %s, numrounds: %i, numparts: %i\n", graphf, partf, numrounds, partitions);
 
     // timing stuff
     clock_t start, end;
@@ -86,7 +79,6 @@ int main(int argc, char const *argv[]) {
     char *token;
     for (int i = 0; i < size; i++) {
         c = f[i];
-        //putchar(c);
         if (c == '\n') {
             numbuf[index] = '\0';
             token = strtok(numbuf, "\t\t");
@@ -97,11 +89,7 @@ int main(int argc, char const *argv[]) {
             p = atoi(token);
             COUNTS[n] = d;
             PART[n] = p;
-            if (p == procid) {
-                if (n > MYMAX) MYMAX = n;
-            }
             if (n > MAXID) MAXID = n;
-            //printf("n: %i,  d: %i, p: %i\n", n, d, p);
             index = 0;
         }//endif
         else {
@@ -153,6 +141,7 @@ int main(int argc, char const *argv[]) {
                 nextindex = NEIGHBS[a][0];
                 NEIGHBS[a][nextindex] = b;
                 NEIGHBS[a][0] = nextindex + 1;
+                if (PART[b] != procid) EXNEIGH[a] = 1;
 //            }
 //            fprintf(stderr, "proc %i: b=%i, PART[b]=%i\n", procid, b, PART[b]);
 //            if (PART[b] == procid) {
@@ -160,6 +149,7 @@ int main(int argc, char const *argv[]) {
                 nextindex = NEIGHBS[b][0];
                 NEIGHBS[b][nextindex] = a;
                 NEIGHBS[b][0] = nextindex + 1;
+                if (PART[a] != procid) EXNEIGH[b] = 1;
 //            }
         }
         else {
@@ -202,14 +192,15 @@ int main(int argc, char const *argv[]) {
         // SEND PHASE
         if (i > 1) {
             for (int n = 0; n <= MAXID; n++) {
-                if (COUNTS[n] && (PART[n] == procid)) {
+                if (EXNEIGH[n] && (PART[n] == procid)) {
                     for (int proc = 0; proc < numprocs; proc++) {
                         if (proc != procid) {
                             sendbuffer[n].ID = n;
                             sendbuffer[n].cred = ROUNDS[i - 1][n];
 //                            fprintf(stderr, "proc %i, REAL n=%i, REAL cred=%f\n", procid, n, ROUNDS[i - 1][n]);
 //                            fprintf(stderr, "proc %i, sending for node=%i, cred=%f\n", procid, (sendbuffer + n)->ID, (sendbuffer + n)->cred);
-                            MPI_Isend(sendbuffer + n, 1, data, proc, 0, MPI_COMM_WORLD, srequest); 
+                            //MPI_Isend(sendbuffer + n, 1, data, proc, 0, MPI_COMM_WORLD, srequest); 
+                            MPI_Send(sendbuffer + n, 1, data, proc, 0, MPI_COMM_WORLD); 
                         } // don't send to self!
                     } //end for proc
                 } //end if this my, valid node
@@ -218,7 +209,8 @@ int main(int argc, char const *argv[]) {
             //sleep(10);
             for (int proc = 0; proc < numprocs; proc++) {
                 if (proc != procid)
-                    MPI_Isend(markerbuffer, 1, MPI_INT, proc, 1, MPI_COMM_WORLD, srequest);
+                    //MPI_Isend(markerbuffer, 1, MPI_INT, proc, 1, MPI_COMM_WORLD, srequest);
+                    MPI_Send(markerbuffer, 1, MPI_INT, proc, 1, MPI_COMM_WORLD);
             } // end for send markers
         fprintf(stderr, "proc %i finished sending phase\n", procid);
 
@@ -289,11 +281,8 @@ int main(int argc, char const *argv[]) {
 */
     }//endfor i
     // WRITE OUTPUT
-    char *outputfile = malloc(strlen("output.txt") + strlen("1") + 1);
-    char *strid = malloc(8);
-    sprintf(strid, "%d", procid);
-    strcpy(outputfile, strid);
-    strcat(outputfile, "_output.txt");
+    char *outputfile = malloc(strlen("Partition0.out") + 1);
+    sprintf(outputfile, "Partition%i.out", procid);
     
     start = clock();
     FILE *output;
@@ -304,11 +293,20 @@ int main(int argc, char const *argv[]) {
     } 
 
     for (int n = 0; n <= MAXID; n++) {
-        if (COUNTS[n]) {
+//        if (COUNTS[n] && (PART[n] == procid)) {
+        if (COUNTS[n]){
             fprintf(output, "%i\t", n);
             fprintf(output, "%i\t", COUNTS[n]);
-            for (int i = 0; i < numrounds; i++) {
+            fprintf(output, "%i\t", PART[n]);
+            if (PART[n] == procid) {
+            for (int i = 0; i <= numrounds; i++) {
                 fprintf(output, "%f\t", ROUNDS[i][n]);
+            }
+            } //endif
+            else{
+            for (int i = 0; i <= numrounds; i++) {
+                fprintf(output, "-\t");
+            } //end else
             } //endfor i
             fprintf(output, "\n");
         } // endif

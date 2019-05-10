@@ -99,7 +99,6 @@ int main(int argc, char const *argv[]) {
     }
 
     // ALLOCATE 2-D array ======================
-    fprintf(stderr, "PROC %i, MAXID = %li\n", procid, MAXID);
     NEIGHBS = malloc((MAXID + 1) * sizeof(int *));
     for (int i = 0; i <= MAXID; i++) {
 //        if (COUNTS[i] && (PART[i] == procid)) {
@@ -159,7 +158,7 @@ int main(int argc, char const *argv[]) {
     }
     end = clock();
     elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("Proc %i: Time to read: %f seconds\n", procid, elapsed);
+    printf("time to read input files, partition %i = %.3fsec\n", procid, elapsed);
 
     // CREATE RECIPROCAL ARRAY ============
     RECIP = calloc(MAXID + 1, sizeof(double));
@@ -183,8 +182,6 @@ int main(int argc, char const *argv[]) {
     Data *recvbuffer = malloc(sizeof(data));
     MPI_Request *srequest = malloc(sizeof(MPI_Request));
     int sum = 0;
-    int tag;
-    int src;
 
     for (int i = 1; i <= numrounds; i++) { // round
         start = clock();
@@ -197,22 +194,17 @@ int main(int argc, char const *argv[]) {
                         if (proc != procid) {
                             sendbuffer[n].ID = n;
                             sendbuffer[n].cred = ROUNDS[i - 1][n];
-//                            fprintf(stderr, "proc %i, REAL n=%i, REAL cred=%f\n", procid, n, ROUNDS[i - 1][n]);
-//                            fprintf(stderr, "proc %i, sending for node=%i, cred=%f\n", procid, (sendbuffer + n)->ID, (sendbuffer + n)->cred);
                             //MPI_Isend(sendbuffer + n, 1, data, proc, 0, MPI_COMM_WORLD, srequest); 
                             MPI_Send(sendbuffer + n, 1, data, proc, 0, MPI_COMM_WORLD); 
                         } // don't send to self!
                     } //end for proc
                 } //end if this my, valid node
             } //end for n (send phase)
-            //MPI_Barrier(MPI_COMM_WORLD);
-            //sleep(10);
             for (int proc = 0; proc < numprocs; proc++) {
                 if (proc != procid)
                     //MPI_Isend(markerbuffer, 1, MPI_INT, proc, 1, MPI_COMM_WORLD, srequest);
                     MPI_Send(markerbuffer, 1, MPI_INT, proc, 1, MPI_COMM_WORLD);
             } // end for send markers
-        fprintf(stderr, "proc %i finished sending phase\n", procid);
 
             // RECV PHASE
             int gotmarker[numprocs];
@@ -248,73 +240,34 @@ int main(int argc, char const *argv[]) {
                 ROUNDS[i][n] = newcred;
             } //end if my, valid node
         }//endfor n
-        end = clock();
-        elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
-        printf("Round %i: %f seconds\n", i, elapsed);
-        MPI_Barrier(MPI_COMM_WORLD);
-/*
-        // WRITE ROUND
-        char *outputfile = malloc(strlen("output.txt") + strlen("R1P1") + 1);
-        char *strid = malloc(8);
-        char *rID = malloc(8);
-        sprintf(rID, "R%i", i);
-        sprintf(strid, "P%d", procid);
-        strcpy(outputfile, rID);
-        strcat(outputfile, strid);
-        strcat(outputfile, "_output.txt");
+        // WRITE OUTPUT
+        char *outputfile = malloc(strlen("R1_P1.out") + 1);
+        sprintf(outputfile, "R%i_P%i.out", i, procid);
         FILE *output;
         output = fopen(outputfile, "w");
         if (output == NULL) {   
             printf("Error: Could not open output file for writing.\n"); 
-            exit(-1); // must include stdlib.h 
+            exit(-1);
         } 
-
         for (int n = 0; n <= MAXID; n++) {
-            if (COUNTS[n]) {
+            if (COUNTS[n] && (PART[n] == procid)) {
                 fprintf(output, "%i\t\t", n);
                 fprintf(output, "%i\t\t", COUNTS[n]);
                 fprintf(output, "%i\t", PART[n]);
-                fprintf(output, "%f\n", ROUNDS[i][n]);
+                fprintf(output, "%.3f\n", ROUNDS[i][n]);
             } // endif
         } //endfor n
         fclose(output);
-*/
-    }//endfor i
-    // WRITE OUTPUT
-    char *outputfile = malloc(strlen("Partition0.out") + 1);
-    sprintf(outputfile, "Partition%i.out", procid);
-    
-    start = clock();
-    FILE *output;
-    output = fopen(outputfile, "w");
-    if (output == NULL) {   
-        printf("Error: Could not open output file for writing.\n"); 
-        exit(-1); // must include stdlib.h 
-    } 
+        end = clock();
+        elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
+        printf("---time for round %i, partition %i = %.3fsec\n", i, procid, elapsed);
 
-    for (int n = 0; n <= MAXID; n++) {
-//        if (COUNTS[n] && (PART[n] == procid)) {
-        if (COUNTS[n]){
-            fprintf(output, "%i\t", n);
-            fprintf(output, "%i\t", COUNTS[n]);
-            fprintf(output, "%i\t", PART[n]);
-            if (PART[n] == procid) {
-            for (int i = 0; i <= numrounds; i++) {
-                fprintf(output, "%f\t", ROUNDS[i][n]);
-            }
-            } //endif
-            else{
-            for (int i = 0; i <= numrounds; i++) {
-                fprintf(output, "-\t");
-            } //end else
-            } //endfor i
-            fprintf(output, "\n");
-        } // endif
-    } //endfor n
-    fclose(output);
-    end = clock();
-    elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("Time to write: %f seconds\n", elapsed);
+        MPI_Barrier(MPI_COMM_WORLD);
+        end = clock();
+        elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
+        printf("total time for round %i: %.3fsec\n", i, elapsed);
+    }//endfor i
+
     ierr = MPI_Finalize();
     return 0;
 }

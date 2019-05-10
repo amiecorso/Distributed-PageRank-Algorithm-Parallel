@@ -15,8 +15,8 @@ What programming language did you use to write your code?
 Does your program compile on ix (CIS department server)? Yes/No
     yes
 
-How should we compile your program on ix? (please provide a makefile)
-    "make"
+How should we compile your program on ix? (please provide a makefile)n
+    "make" and then "make run" to run the program.  The makefile is currently set up to run with 4 partitions and 5 rounds.  To run with 2 processes, simply change the relevant fl_compact_part.x file, and the argument to -np flag to 2.  The final argument to the program (which is supposed to represent the number of processes)isn't actually used by the program (but I kept it there to adhere to format specificed in project description).
 
 Does your program run on ix? Yes/No
     yes

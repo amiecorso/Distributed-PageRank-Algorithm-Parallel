@@ -44,7 +44,7 @@ int main(int argc, char const *argv[]) {
     MPI_Type_create_struct(count, array_of_blocklengths, array_of_displacements, array_of_types, &data);
     MPI_Type_commit(&data);
 
-    COUNTS = calloc(MAXNODES, sizeof(int));
+    COUNTS = calloc(MAXNODES + 1, sizeof(int));
     PART = calloc(MAXNODES, sizeof(int));
 
     char *graphf = argv[1];
@@ -232,6 +232,9 @@ int main(int argc, char const *argv[]) {
                 for (int neighindex = 1; neighindex <= COUNTS[n]; neighindex++) {
                     int neighbor = NEIGHBS[n][neighindex];
                     double neighcred = ROUNDS[i - 1][neighbor];
+                    if (neighcred == 0) {
+                        fprintf(stderr, "round %i, proc %i, node %i, neighbor %i credit was %f\n", i, procid, n, neighbor, neighcred);
+                    }
 //                    if (n == 3)
 //node3                    fprintf(stderr, "R%i, node:%i, neighbor:%i, oldcred:%f, recip:%f (degree=%i, 1/deg=%f)\n", i, n, neighbor, neighcred, RECIP[neighbor], COUNTS[neighbor], 1.0/COUNTS[neighbor]);
 //                    newcred += neighcred * RECIP[neighbor];
@@ -254,7 +257,7 @@ int main(int argc, char const *argv[]) {
                 fprintf(output, "%i\t\t", n);
                 fprintf(output, "%i\t\t", COUNTS[n]);
                 fprintf(output, "%i\t", PART[n]);
-                fprintf(output, "%.3f\n", ROUNDS[i][n]);
+                fprintf(output, "%f\n", ROUNDS[i][n]);
             } // endif
         } //endfor n
         fclose(output);

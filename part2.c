@@ -20,9 +20,10 @@ long MAXNODES = 2000000;
 long MAXID = 0;
 int *COUNTS; 
 int *PART;
-int *EXNEIGH; //does this node have EXTERNAL neighbors?
+int **EXNEIGH; //does this node have EXTERNAL neighbors?
 double *RECIP;
 int **NEIGHBS;
+
 typedef struct Data {
     int ID;
     double cred;
@@ -44,7 +45,7 @@ int main(int argc, char const *argv[]) {
     MPI_Type_create_struct(count, array_of_blocklengths, array_of_displacements, array_of_types, &data);
     MPI_Type_commit(&data);
 
-    COUNTS = calloc(MAXNODES + 1, sizeof(int));
+    COUNTS = calloc(MAXNODES, sizeof(int));
     PART = calloc(MAXNODES, sizeof(int));
 
     char *graphf = argv[1];
@@ -101,12 +102,15 @@ int main(int argc, char const *argv[]) {
     // ALLOCATE 2-D array ======================
     NEIGHBS = malloc((MAXID + 1) * sizeof(int *));
     for (int i = 0; i <= MAXID; i++) {
-//        if (COUNTS[i] && (PART[i] == procid)) {
+        if (COUNTS[i] && (PART[i] == procid)) {
             NEIGHBS[i] = malloc((COUNTS[i] + 1) * sizeof(int));
             NEIGHBS[i][0] = 1; // INDEX info
-//        }
+        }
     }
-    EXNEIGH = calloc(MAXID + 1, sizeof(int));
+    EXNEIGH = malloc((MAXID + 1) * sizeof(int*));
+    for (int i = 0; i <= MAXID; i++) {
+        EXNEIGH[i] = calloc(numprocs, sizeof(int));
+    }
 
     // READ GRAPH FILE (POPULATE NEIGHBS)================
     fd = open(graphf, O_RDONLY);
@@ -135,21 +139,21 @@ int main(int argc, char const *argv[]) {
             //fprintf(stderr, "a: %i, b: %i\n", a, b);
             // populate neighbor arrays (ONLY for MY nodes)
 //            fprintf(stderr, "proc %i: a=%i, PART[a]=%i\n", procid, a, PART[a]);
-//            if (PART[a] == procid) {
+            if (PART[a] == procid) {
 //                fprintf(stderr, "proc %i: adding neighbor b=%i for node a=%i\n", procid, b, a);
                 nextindex = NEIGHBS[a][0];
                 NEIGHBS[a][nextindex] = b;
                 NEIGHBS[a][0] = nextindex + 1;
-                if (PART[b] != procid) EXNEIGH[a] = 1;
-//            }
+                if (PART[b] != procid) EXNEIGH[a][PART[b]] = 1;
+            }
 //            fprintf(stderr, "proc %i: b=%i, PART[b]=%i\n", procid, b, PART[b]);
-//            if (PART[b] == procid) {
+            if (PART[b] == procid) {
 //                fprintf(stderr, "proc %i: adding neighbor a=%i for node b=%i\n", procid, a, b);
                 nextindex = NEIGHBS[b][0];
                 NEIGHBS[b][nextindex] = a;
                 NEIGHBS[b][0] = nextindex + 1;
-                if (PART[a] != procid) EXNEIGH[b] = 1;
-//            }
+                if (PART[a] != procid) EXNEIGH[b][PART[a]] = 1;
+            }
         }
         else {
             newbuf[index] = c;
@@ -189,12 +193,11 @@ int main(int argc, char const *argv[]) {
         // SEND PHASE
         if (i > 1) {
             for (int n = 0; n <= MAXID; n++) {
-                if (EXNEIGH[n] && (PART[n] == procid)) {
+                if ((PART[n] == procid)) {
                     for (int proc = 0; proc < numprocs; proc++) {
-                        if (proc != procid) {
+                        if (EXNEIGH[n][proc]) {
                             sendbuffer[n].ID = n;
                             sendbuffer[n].cred = ROUNDS[i - 1][n];
-                            //MPI_Isend(sendbuffer + n, 1, data, proc, 0, MPI_COMM_WORLD, srequest); 
                             MPI_Send(sendbuffer + n, 1, data, proc, 0, MPI_COMM_WORLD); 
                         } // don't send to self!
                     } //end for proc
@@ -202,7 +205,6 @@ int main(int argc, char const *argv[]) {
             } //end for n (send phase)
             for (int proc = 0; proc < numprocs; proc++) {
                 if (proc != procid)
-                    //MPI_Isend(markerbuffer, 1, MPI_INT, proc, 1, MPI_COMM_WORLD, srequest);
                     MPI_Send(markerbuffer, 1, MPI_INT, proc, 1, MPI_COMM_WORLD);
             } // end for send markers
 
@@ -214,7 +216,6 @@ int main(int argc, char const *argv[]) {
             while (sum < numprocs) {
                 MPI_Recv(recvbuffer, 1, data, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &rstat);
                 if (rstat.MPI_TAG == 0) {
-                    //fprintf(stderr, "R%i, proc %i received msg for node=%i, cred=%f, PART[n]=%i\n", i, procid, recvbuffer[0].ID, recvbuffer[0].cred, PART[recvbuffer[0].ID]);
                     ROUNDS[i - 1][recvbuffer[0].ID] = recvbuffer[0].cred;
                 } // tag = 0
                 else { //assuming tag = 1
@@ -227,14 +228,10 @@ int main(int argc, char const *argv[]) {
         ROUNDS[i] = calloc(MAXID + 1, sizeof(double));
         for (int n = 0; n <= MAXID; n++) { // node
             if (COUNTS[n] && (PART[n] == procid)) { // IF this is MY node
-//            if (COUNTS[n]) {
                 double newcred = 0.0; // new credit for this node, this round
                 for (int neighindex = 1; neighindex <= COUNTS[n]; neighindex++) {
                     int neighbor = NEIGHBS[n][neighindex];
                     double neighcred = ROUNDS[i - 1][neighbor];
-//                    if (n == 3)
-//node3                    fprintf(stderr, "R%i, node:%i, neighbor:%i, oldcred:%f, recip:%f (degree=%i, 1/deg=%f)\n", i, n, neighbor, neighcred, RECIP[neighbor], COUNTS[neighbor], 1.0/COUNTS[neighbor]);
-//                    newcred += neighcred * RECIP[neighbor];
                     newcred += neighcred / COUNTS[neighbor];
                 } //endfor neighindex
                 ROUNDS[i][n] = newcred;

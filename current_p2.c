@@ -20,7 +20,7 @@ long MAXNODES = 2000000;
 long MAXID = 0;
 int *COUNTS; 
 int *PART;
-int *EXNEIGH; //does this node have EXTERNAL neighbors?
+int **EXNEIGH; //does this node have EXTERNAL neighbors?
 double *RECIP;
 int **NEIGHBS;
 typedef struct Data {
@@ -44,7 +44,7 @@ int main(int argc, char const *argv[]) {
     MPI_Type_create_struct(count, array_of_blocklengths, array_of_displacements, array_of_types, &data);
     MPI_Type_commit(&data);
 
-    COUNTS = calloc(MAXNODES + 1, sizeof(int));
+    COUNTS = calloc(MAXNODES, sizeof(int));
     PART = calloc(MAXNODES, sizeof(int));
 
     char *graphf = argv[1];
@@ -106,7 +106,10 @@ int main(int argc, char const *argv[]) {
             NEIGHBS[i][0] = 1; // INDEX info
 //        }
     }
-    EXNEIGH = calloc(MAXID + 1, sizeof(int));
+    EXNEIGH = malloc((MAXID + 1) * sizeof(int*));
+    for (int i = 0; i <= MAXID; i++) {
+        EXNEIGH[i] = calloc(numprocs, sizeof(int));
+    }
 
     // READ GRAPH FILE (POPULATE NEIGHBS)================
     fd = open(graphf, O_RDONLY);
@@ -140,7 +143,7 @@ int main(int argc, char const *argv[]) {
                 nextindex = NEIGHBS[a][0];
                 NEIGHBS[a][nextindex] = b;
                 NEIGHBS[a][0] = nextindex + 1;
-                if (PART[b] != procid) EXNEIGH[a] = 1;
+                if (PART[b] != procid) EXNEIGH[a][PART[b]] = 1;
 //            }
 //            fprintf(stderr, "proc %i: b=%i, PART[b]=%i\n", procid, b, PART[b]);
 //            if (PART[b] == procid) {
@@ -148,7 +151,7 @@ int main(int argc, char const *argv[]) {
                 nextindex = NEIGHBS[b][0];
                 NEIGHBS[b][nextindex] = a;
                 NEIGHBS[b][0] = nextindex + 1;
-                if (PART[a] != procid) EXNEIGH[b] = 1;
+                if (PART[a] != procid) EXNEIGH[b][PART[a]] = 1;
 //            }
         }
         else {
@@ -189,9 +192,9 @@ int main(int argc, char const *argv[]) {
         // SEND PHASE
         if (i > 1) {
             for (int n = 0; n <= MAXID; n++) {
-                if (EXNEIGH[n] && (PART[n] == procid)) {
+                if ((PART[n] == procid)) {
                     for (int proc = 0; proc < numprocs; proc++) {
-                        if (proc != procid) {
+                        if (EXNEIGH[n][proc]) {
                             sendbuffer[n].ID = n;
                             sendbuffer[n].cred = ROUNDS[i - 1][n];
                             //MPI_Isend(sendbuffer + n, 1, data, proc, 0, MPI_COMM_WORLD, srequest); 
